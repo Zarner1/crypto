@@ -56,7 +56,7 @@ data_scaled["Target"] = target.values
 
 X = data_scaled.drop(columns=["Target"])
 y = data_scaled["Target"]
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, stratify=y, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
 
 # ---- Özellik Seçimi1: RandomForest ve SelectFromModel ----
 rf = RandomForestClassifier(random_state=42)
@@ -155,17 +155,15 @@ for feature_set, cm_dict in zip(["RandomForest SelectFromModel", "RFE", "RF Impo
 
 
 
-# Bu kısım önemli: Modeli X_train[rfe_features] ile eğitiyoruz.
-# RF Importance + SVM modeli yeniden eğit (Streamlit için kullanılacak olan bu)
-# Bu kısım önemli: Modeli X_train[rf_importance_features] ile eğitiyoruz.
-svm_final_model = SVC(random_state=42, probability=True) 
-svm_final_model.fit(X_train[rf_importance_features], y_train)
+# RFE özellik seti ile Random Forest modelini eğit
+rf_rfe_model = RandomForestClassifier(random_state=42)
+rf_rfe_model.fit(X_train[rfe_features], y_train)
 
-# Modeli, scaler'ı ve özellik listesini kaydet
-joblib.dump(svm_final_model, "svm_rfimportance_model.pkl")  
-joblib.dump(scaler, "scaler.pkl") 
-joblib.dump(rf_importance_features, "rfimportance_selected_features.pkl") 
+# Modeli, scaler'ı ve RFE özellik listesini kaydet
+joblib.dump(rf_rfe_model, "randomforest_rfe_model.pkl")
+joblib.dump(scaler, "scaler.pkl") # Bu zaten var, tekrar kaydetmeye gerek olmayabilir
+joblib.dump(rfe_features, "rfe_selected_features.pkl")
+joblib.dump(features_columns_for_scaler, "features_columns_for_scaler.pkl") # Bu da zaten var
 
-print("Modeller, scaler ve özellik listeleri başarıyla kaydedildi.")
-print(f"RF Importance ile seçilen özellikler: {rf_importance_features}")
-print(f"Scaler için kullanılan özellik sırası: {features_columns_for_scaler}")
+print("Random Forest (RFE ile) modeli, scaler ve özellik listeleri başarıyla kaydedildi.")
+print(f"RFE ile seçilen özellikler: {rfe_features}")

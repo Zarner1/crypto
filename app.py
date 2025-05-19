@@ -8,20 +8,22 @@ import os
 
 st.set_page_config(page_title="BTC Fiyat Yönü Tahmini", layout="wide")
 
-MODEL_YOLU = "svm_rfimportance_model.pkl"
+# --- GÜNCELLENMİŞ Yollar ---
+MODEL_YOLU = "randomforest_rfe_model.pkl" 
 OLCEKLEYICI_YOLU = "scaler.pkl"
-OZNITELIKLER_YOLU = "rfimportance_selected_features.pkl"
+OZNITELIKLER_YOLU = "rfe_selected_features.pkl" 
 OLCEKLEYICI_SUTUNLARI_YOLU = "features_columns_for_scaler.pkl"
 
+
 GECMIS_VERI_YOLU = "btc_verisi.csv"
-GEREKLI_GECMIS_GUN_SAYISI = 40
+GEREKLI_GECMIS_GUN_SAYISI = 40 
 
 @st.cache_resource
 def model_varliklarini_yukle():
     yollar = {
         "Model": MODEL_YOLU,
         "Ölçekleyici": OLCEKLEYICI_YOLU,
-        "RF Importance Özellikleri": OZNITELIKLER_YOLU,
+        "RFE Özellikleri": OZNITELIKLER_YOLU, # Açıklama güncellendi
         "Ölçekleyici Sütunları": OLCEKLEYICI_SUTUNLARI_YOLU
     }
     yuklenen_varliklar = {}
@@ -36,7 +38,7 @@ def model_varliklarini_yukle():
     try:
         yuklenen_varliklar["model"] = joblib.load(MODEL_YOLU)
         yuklenen_varliklar["olcekleyici"] = joblib.load(OLCEKLEYICI_YOLU)
-        yuklenen_varliklar["rfimportance_oznitelik_listesi"] = joblib.load(OZNITELIKLER_YOLU)
+        yuklenen_varliklar["rfe_oznitelik_listesi"] = joblib.load(OZNITELIKLER_YOLU) # Anahtar güncellendi
         yuklenen_varliklar["olcekleyici_sutun_listesi"] = joblib.load(OLCEKLEYICI_SUTUNLARI_YOLU)
         return yuklenen_varliklar
     except Exception as e:
@@ -97,7 +99,9 @@ if varliklar is None or tam_gecmis_veri is None:
 
 model = varliklar["model"]
 olcekleyici = varliklar["olcekleyici"]
-RFONEM_SECILMIS_OZNITELIKLER = varliklar["rfimportance_oznitelik_listesi"]
+# --- Değişken adı güncellendi ---
+RFE_SECILMIS_OZNITELIKLER = varliklar["rfe_oznitelik_listesi"]
+# --- Değişken adı güncellendi sonu ---
 OLCEKLEYICI_GIRIS_SUTUNLARI = varliklar["olcekleyici_sutun_listesi"]
 
 st.sidebar.header("Güncel Günün Verilerini Girin")
@@ -157,14 +161,18 @@ if st.sidebar.button("Tahmin Et", type="primary"):
             olceklenmis_oznitelikler_dizisi = olcekleyici.transform(olceklenecek_df)
             olceklenmis_oznitelikler_df = pd.DataFrame(olceklenmis_oznitelikler_dizisi, columns=OLCEKLEYICI_GIRIS_SUTUNLARI, index=olceklenecek_df.index)
 
-            eksik_model_sutunlari = [sutun for sutun in RFONEM_SECILMIS_OZNITELIKLER if sutun not in olceklenmis_oznitelikler_df.columns]
+            # --- Model için doğru özellikleri seçme güncellendi ---
+            eksik_model_sutunlari = [sutun for sutun in RFE_SECILMIS_OZNITELIKLER if sutun not in olceklenmis_oznitelikler_df.columns]
             if eksik_model_sutunlari:
                 st.error(f"Ölçeklenmiş veride model için beklenen özellikler eksik: {', '.join(eksik_model_sutunlari)}")
                 st.stop()
 
-            model_icin_son_oznitelikler = olceklenmis_oznitelikler_df[RFONEM_SECILMIS_OZNITELIKLER]
+            model_icin_son_oznitelikler = olceklenmis_oznitelikler_df[RFE_SECILMIS_OZNITELIKLER]
+            # --- Model için özellik seçimi sonu ---
+
 
             tahmin = model.predict(model_icin_son_oznitelikler)
+            model.predict_proba(model_icin_son_oznitelikler) # Olasılıkları almak isterseniz
 
             st.subheader("Tahmin Sonucu")
             sutun1, sutun2 = st.columns([1,3])
@@ -180,6 +188,10 @@ if st.sidebar.button("Tahmin Et", type="primary"):
                 else:
                     st.error("📉 **DÜŞÜŞ** bekleniyor.")
                     st.markdown("Tahminimiz, yarınki Bitcoin kapanış fiyatının bugünkü kapanış fiyatından **daha düşük** olacağı yönündedir.")
+                    if hasattr(model, 'predict_proba'):
+                     olasiliklar = model.predict_proba(model_icin_son_oznitelikler)
+                     st.write(f"Model Güveni (Yükseliş olasılığı): {olasiliklar[0][1]:.2%}")
+
 
             with st.expander("Detaylar: Modele Giren Veriler"):
                 st.markdown("##### Ham Girilen Veriler (Bugün):")
@@ -188,7 +200,9 @@ if st.sidebar.button("Tahmin Et", type="primary"):
                 st.dataframe(olceklenecek_df.style.format("{:.2f}"))
                 st.markdown("##### Ölçeklenmiş ve Model İçin Seçilmiş Özellikler:")
                 st.dataframe(model_icin_son_oznitelikler.style.format("{:.4f}"))
-                st.caption(f"Modelin kullandığı özellikler: ` {', '.join(RFONEM_SECILMIS_OZNITELIKLER)} `")
+                # --- Caption güncellendi ---
+                st.caption(f"Modelin kullandığı özellikler: ` {', '.join(RFE_SECILMIS_OZNITELIKLER)} `")
+                # --- Caption sonu ---
 
         except ValueError as ve:
             st.error(f"Veri hatası: {ve}")
